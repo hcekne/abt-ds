@@ -9,12 +9,15 @@ The intended way to interact with and use the tool is through the docker contain
 
 ## Getting Started
 
+Prerequisites: If you want to run the container make sure you have installed Docker and have permissions to run it.
+
 To run:
 
 1. Clone the repo and navigate to the root folder
-2. Run the buildImage.sh file ( type "sudo bash ./buildImage.sh")
-3. Then run the docker container with runContainer.sh  (type "sudo bash ./runContainer.sh")
-4. Play around with the tools!
+2. Edit the runContainer.sh file with your values for NB_USER (your username, run "whoami" in a linux terminal), NB_UID and GID (run "id <your username>" on a linux system to see these) (The reason to do is because then when the container edits and makes files that are stored in your folders, they will be stored as if your user had made them and you don't get any issues with permissions). Also edit the line   -v "${PWD}":/home/hcekne/work/ \ and replace hcekne with your username.
+4. Run the buildImage.sh file ( type "sudo bash ./buildImage.sh")
+5. Then run the docker container with runContainer.sh  (type "sudo bash ./runContainer.sh")
+6. Play around with the tools!
 
 There are a few different ways to interact with the tools:
 
