@@ -20,6 +20,8 @@ docker run -it --rm \
 	-e CHOWN_HOME=yes \
 	-e CHOWN_HOME_OPTS="-R" \
 	-e RETRAIN_MODELS="yes" \
+	--env-file ./.env \
 	-w "/home/hcekne" \
 	-v "${PWD}":/home/hcekne/work/ \
+	-v /home/hcekne/ml_data/:/home/hcekne/data/ \
 	abt_ds

@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="abt_ds",
+    name="ds_abm",
     packages=find_packages(
-        include=["abt_ds"]
+        include=["ds_abm"]
     ),
     include_package_data=True,
     python_requires=">=3.10",
