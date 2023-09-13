@@ -1,4 +1,4 @@
-# abt-ds
+# DS-ABM
 This repository is built and maintained for providing tools to run Agent-Based models for data science tasks.
 
 The tool is built on a docker image with a Jupyter notebook for easy testing, development and portability. Follow the guide to run and use.
