@@ -1,7 +1,7 @@
 import pandas as pd
 import random
 import feather
-from ds_abt.utilities.embeddingAnalysis import calculate_embeddings
+from ds_abt.utils.embedding_analysis import calculate_embeddings
 
 class Experiment:
     def __init__(self, initial_data, pre_existing_customer_embeddings=None, pre_existing_product_embeddings=None):

@@ -4,20 +4,20 @@
 import numpy as np
 import pandas as pd
 import random
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
+#from sklearn.linear_model import LinearRegression
+#from sklearn.model_selection import train_test_split
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
 from torch.utils.data import DataLoader, TensorDataset
-import torch
-import torch.nn as nn
-import torch.optim as optim
+
+
 
 #----------------------------------------------------------------------------
 ## Data prep tasks and functions
 #----------------------------------------------------------------------------
+
+
 
 def enrich_with_false_observations(df1, customer_col, product_col):
     """
@@ -96,9 +96,9 @@ def enrich_with_false_observations(df1, customer_col, product_col):
 # ------- Embedding model definitions----------------------------------------
 #----------------------------------------------------------------------------
 
-class PreTrainEmbeddingModelDotProduct(nn.Module):
+class PreTrainEmbedding(nn.Module):
     def __init__(self, n_customers, n_products, n_factors):
-        super(preTrainEmbeddingModelDotProduct, self).__init__()
+        super(PreTrainEmbedding, self).__init__()
         self.cust_embedding = nn.Embedding(n_customers, n_factors)
         self.prod_embedding = nn.Embedding(n_products, n_factors)
         self.out = nn.Linear(1, 1)  # Since the dot product results in a single value, the output layer has 1 input feature
@@ -118,7 +118,7 @@ class PreTrainEmbeddingModelDotProduct(nn.Module):
 # Define the second model architecture
 class SecondEmbeddingModel(nn.Module):
     def __init__(self, n_customers, n_products, n_factors):
-        super(secondEmbeddingModel, self).__init__()
+        super(SecondEmbeddingModel, self).__init__()
         self.cust_embedding = nn.Embedding(n_customers, n_factors)
         self.prod_embedding = nn.Embedding(n_products, n_factors)
         self.out = nn.Linear(1, 1)  # Since the dot product results in a single value, the output layer has 1 input feature
@@ -132,7 +132,7 @@ class SecondEmbeddingModel(nn.Module):
         x = self.out(dot_product)
         return x
 
-def model_training_loop(embed_model, train_loader, epochs=20):
+def model_training_loop(embed_model, train_loader, criterion, optimizer, epochs=20):
     for epoch in range(epochs):
         # batch_losses = []
         for i, (cust, prod, y) in enumerate(train_loader):
@@ -148,36 +148,96 @@ def model_training_loop(embed_model, train_loader, epochs=20):
 
 
 
-def create_double_embedding(df1, first_model_epochs=20, second_model_epochs=20):
 
-    # Perform needed data analysis 
+
+def create_double_embedding(df1,n_factors=20, pre_train_model_epochs=20, second_model_epochs=20, 
+                            customer_col='CustomerIndex', product_col='ProductIndex', quantity_col='Quantity'):
+    """
+    Creates embeddings of customers and products. Uses a double embedding architecture and 
+    first creates the embeddings based on a boolean value of whether a customer and product
+    combination has been observed within the data. Then loads those embeddings into another
+    model that uses the quantity of product purchased to be create the embebbing model.
+
+    Parameters:
+    ----------
+    df1 : pd.DataFrame
+        The input DataFrame containing the actual customer-product pairs.
+    n_factors : int
+        The number of embedding dimensions in the embedding models
+    pre_train_model_epochs : int
+        The number of epochs to train the first model for
+    second_model_epochs : int
+        The number of epochs to train the second model for
+    customer_col : str
+        The column name in df1 representing the customer index.
+    product_col : str
+        The column name in df1 representing the product index.
+    quantity_col : str
+        The column used to determine product quantity for the second model.
+
+    Returns:
+    -------
+    customer_embeddings_2 : np.array
+        A numpy array with embeddings for the customers
+    product_embeddings_2 : np.array
+        A numpy array with the product embeddings
+
+    """
+
+    
+    #----------# 0. Perform needed data analysis #----------------#
+    n_customers = df1[customer_col].nunique()
+    n_products = df1[product_col].nunique()
+
+    df_pre_train = enrich_with_false_observations(df1, customer_col, product_col)
+
+    # Extracting relevant columns for the first pretraining embedding model
+    customer_indices_1 = torch.tensor(df_pre_train[customer_col].values, dtype=torch.long)
+    product_indices_1 = torch.tensor(df_pre_train[product_col].values, dtype=torch.long)
+    true_shop = torch.tensor(df_pre_train['true_shop'].values, dtype=torch.float32)
+    
+    # extracting the relevant columns for the second embedding model
+    customer_indices_2 = torch.tensor(df1[customer_col].values, dtype=torch.long)
+    product_indices_2 = torch.tensor(df1[product_col].values, dtype=torch.long)
+    quantities = torch.tensor(df1[quantity_col].values, dtype=torch.float32)
 
 
     #----------# 1. Model #----------------#
     
-    # Initialize the pre-training model, loss function, and optimizer
-    pre_training_model = PreTrainEmbeddingModelDotProduct(n_customers, n_products, n_factors)
-    criterion = nn.BCELoss()  # Binary Cross-Entropy Loss
-    optimizer = optim.Adam(pre_training_model.parameters(), lr=0.01)
+    # Initialize the pre-training model
+    pre_training_model = PreTrainEmbedding(n_customers, n_products, n_factors)
+
     # Data Loader (adjust batch_size as needed)
     train_data = TensorDataset(customer_indices_1, product_indices_1, true_shop)
     train_loader_1 = DataLoader(train_data, batch_size=1024, shuffle=True)
     # Training Looop
-    model_training_loop(embed_model=pre_training_model, train_loader=train_loader_1, epochs=first_model_epochs)
+    model_training_loop(embed_model=pre_training_model, train_loader=train_loader_1,
+                        criterion=nn.BCELoss(), # Binary Cross-Entropy Loss, optimizer:criterion_pre_train,
+                        optimizer=optim.Adam(pre_training_model.parameters(), lr=0.01),
+                        epochs=pre_train_model_epochs)
 
     #----------# 2. Model #----------------#
             
-    # Initialize the model, loss function, and optimizer
-    second_model = secondEmbeddingModel(n_customers, n_products, n_factors)
-    # Lod state from first model
-    second_model.load_state_dict(torch.load("pre_training_model.pth"), strict=False)
-    
-    criterion = nn.MSELoss()  # Mean Squared Error Loss
-    optimizer = optim.Adam(second_model.parameters(), lr=0.01)
-    
+    # Initialize the model
+    second_model = SecondEmbeddingModel(n_customers, n_products, n_factors)
+    # Load state from first model
+    second_model.load_state_dict(pre_training_model.state_dict(), strict=False)    
+
+    # Data Loader (adjust batch_size as needed)
     train_data = TensorDataset(customer_indices_2, product_indices_2, quantities)
     train_loader_2 = DataLoader(train_data, batch_size=1024, shuffle=True)
-    
     # Training loop (adjust epochs as needed)
-    model_training_loop(embed_model=secondEmbeddingModel, train_loader=train_loader_2, epochs=second_model_epochs)
+    model_training_loop(embed_model=second_model, train_loader=train_loader_2, 
+                        criterion=nn.MSELoss(), 
+                        optimizer=optim.Adam(second_model.parameters(), lr=0.01),
+                        epochs=second_model_epochs)
+
+    #----------# 3. Generating output #----------------#
+                                
+    # Extract embeddings from the 2 model
+    customer_embeddings_2 = second_model.cust_embedding.weight.detach().numpy()
+    product_embeddings_2 = second_model.prod_embedding.weight.detach().numpy()
+
+
+    return customer_embeddings_2, product_embeddings_2
  

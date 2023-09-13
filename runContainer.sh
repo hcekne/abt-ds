@@ -24,4 +24,4 @@ docker run -it --rm \
 	-w "/home/hcekne" \
 	-v "${PWD}":/home/hcekne/work/ \
 	-v /home/hcekne/ml_data/:/home/hcekne/data/ \
-	abt_ds
+	ds_abm

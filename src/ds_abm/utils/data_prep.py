@@ -48,6 +48,8 @@ def feature_engineering(df):
     # Extract year-month and individual date from 'InvoiceDatetime'
     df['YearMonth'] = df['InvoiceDatetime'].dt.to_period('M')
     df['InvoiceDate'] = df['InvoiceDatetime'].dt.to_period('D')
+    df['Year'] = df['InvoiceDatetime'].dt.year
+    df['Month'] = df['InvoiceDatetime'].dt.month
     
     # Extract the weekday
     df['Weekday'] = df['InvoiceDatetime'].apply(lambda x: x.strftime('%A'))
@@ -80,5 +82,32 @@ def data_cleaning(df):
 
     df.reset_index(drop=True, inplace=True)
     
+    return df
+
+def create_integer_indices(df, column_dict):
+    """
+    Enrich a DataFrame with integer indices for dict of columns.
+    This is useful for feeding obeservations into neural net.
+
+    Parameters:
+    ----------
+    df : pd.DataFrame
+        The input DataFrame containing the actual customer-product pairs.
+    column_dict : dict
+        Dictionary of  pairs of columns to convert to indices and the new name for the index
+
+    Returns:
+    -------
+    pd.DataFrame
+        A new DataFrame containing both the original and the indices
+
+    """
+    for col in column_dict:
+        # Get unique values from column
+        unique_col_vals = df[col].unique()
+        # Create mappings for columns to integers
+        col_to_index = {val1: index for index, val1 in enumerate(unique_col_vals)}
+        # Create new columns in the data with the integer mappings
+        df[column_dict[col]] = df[col].map(col_to_index)
     return df
 
